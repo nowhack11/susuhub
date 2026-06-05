@@ -1,1 +1,38 @@
-/* SusuHub Styles */
+body{
+margin:0;
+font-family:Arial, sans-serif;
+background:#F5F9FF;
+}
+
+.container{
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+.hero{
+text-align:center;
+padding:30px;
+}
+
+.hero h1{
+color:#1565C0;
+font-size:48px;
+margin-bottom:10px;
+}
+
+.hero p{
+font-size:18px;
+color:#555;
+margin-bottom:30px;
+}
+
+.btn{
+background:#1565C0;
+color:white;
+text-decoration:none;
+padding:15px 30px;
+border-radius:10px;
+display:inline-block;
+}
