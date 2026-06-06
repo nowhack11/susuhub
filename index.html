@@ -89,6 +89,9 @@
   </style>
 </head>
 <body>
+<!-- TEST: If JavaScript works, you will see an alert "hello" -->
+<script>alert('hello');</script>
+
 <div id="app">
   <!-- WELCOME -->
   <section id="welcome-screen" class="screen active">
@@ -96,7 +99,7 @@
       <div class="logo">💙</div>
       <h1>SusuHub</h1>
       <p class="tagline">Save consistently. Withdraw at maturity.</p>
-      <button onclick="alert('JS works!')">Get Started</button>
+      <button onclick="navigateTo('login-screen')">Get Started</button>
     </div>
   </section>
 
@@ -399,9 +402,9 @@ async function handleOTP() {
   const otp = document.getElementById('otp-input').value.trim();
   if (otp !== '123456') return alert('Invalid OTP. Demo: 123456');
   const phone = sessionStorage.getItem('otp_phone');
-  
+
   let { data: user, error } = await supabase.from('users').select('*').eq('phone', phone).maybeSingle();
-  
+
   if (!user) {
     const { data: newUser, error: createError } = await supabase.from('users').insert({ phone }).select().single();
     if (createError) return alert('Error creating user: ' + createError.message);
@@ -410,7 +413,7 @@ async function handleOTP() {
     navigateTo('profile-setup-screen');
     return;
   }
-  
+
   currentUser = user;
   if (user.role === 'admin') return navigateTo('admin-dashboard-screen');
   if (user.pin) return navigateTo('password-screen');
@@ -511,7 +514,6 @@ async function createSavingsPlan(e) {
     maturity_date: maturity.toISOString(), total_deposited: amount, active: true
   }).select().single();
   await supabase.from('transactions').insert({ user_phone: currentUser.phone, type: 'Deposit', amount, status: 'Successful' });
-  await supabase.from('savings').update({ total_deposited: amount }).eq('id', plan.id);
   renderSavings(); updateDashboard(); alert('Plan created!');
 }
 
