@@ -1,0 +1,71 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SusuHub MVP Prototype</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f7fb;margin:0}
+.container{max-width:420px;margin:auto;padding:16px}
+.card{background:white;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+h1,h2{margin:0 0 12px}
+input,button,select{width:100%;padding:12px;margin:8px 0;border-radius:10px;border:1px solid #ccc;box-sizing:border-box}
+button{background:#0b6efd;color:white;border:none}
+.balance{font-size:32px;font-weight:bold}
+.progress{background:#e9ecef;border-radius:20px;height:12px}
+.progress div{background:#0b6efd;height:12px;width:65%;border-radius:20px}
+.small{color:#666;font-size:14px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>SusuHub</h1>
+    <p>Save consistently. Withdraw at maturity.</p>
+    <input placeholder="Phone Number">
+    <button>Send OTP</button>
+  </div>
+
+  <div class="card">
+    <h2>OTP Verification</h2>
+    <input placeholder="Enter 6-digit code">
+    <button>Verify</button>
+  </div>
+
+  <div class="card">
+    <h2>Profile Setup</h2>
+    <input placeholder="Full Name">
+    <input placeholder="Mobile Money Number">
+    <button>Save Profile</button>
+  </div>
+
+  <div class="card">
+    <h2>Dashboard</h2>
+    <div class="balance">GHS 850</div>
+    <div class="small">Total Saved</div>
+    <p>Plan: GHS 10/day • 30 Days</p>
+    <div class="progress"><div></div></div>
+    <p class="small">65% Complete</p>
+    <button>Create Savings Plan</button>
+    <button>Request Withdrawal</button>
+  </div>
+
+  <div class="card">
+    <h2>Notification Preferences</h2>
+    <label><input type="checkbox" checked> Debit Alert</label><br>
+    <label><input type="checkbox" checked> Withdrawal Alert</label><br>
+    <label><input type="checkbox"> Failed Payment Alert</label><br>
+    <label><input type="checkbox" checked> Reminder Alert</label><br>
+  </div>
+
+  <div class="card">
+    <h2>Admin Dashboard</h2>
+    <p>Total Users: 12</p>
+    <p>Pending Withdrawals: 3</p>
+    <button>Manage Users</button>
+    <button>Approve Withdrawals</button>
+  </div>
+</div>
+</body>
+</html>
