@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>SusuHub - Save consistently. Withdraw at maturity.</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -65,13 +64,6 @@
     .danger-zone { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
     .link { color: #0b6efd; font-weight: 500; cursor: pointer; }
     .error-msg { color: #ef4444; font-size: 12px; margin-top: -8px; margin-bottom: 8px; display: none; }
-    .connection-status {
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      margin-top: 12px; font-size: 12px;
-    }
-    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .dot.green { background: #22c55e; }
-    .dot.red { background: #ef4444; }
   </style>
 </head>
 <body>
@@ -85,10 +77,6 @@
       <input type="tel" id="login-phone" placeholder="Phone Number (e.g. 0551234567)" />
       <div id="login-phone-error" class="error-msg">Phone must be 10 digits, starting with 0</div>
       <button onclick="handleLogin()">Continue</button>
-      <div class="connection-status" id="connection-status">
-        <span class="dot red" id="status-dot"></span>
-        <span id="status-text">Offline</span>
-      </div>
     </div>
   </section>
 
@@ -285,38 +273,6 @@
 </div>
 
 <script>
-// ========== SUPABASE CLIENT (safe initialization) ==========
-let supabase = null;
-try {
-  if (window.supabase) {
-    supabase = window.supabase.createClient(
-      'https://tgpfxktzvqjfljhodedv.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRncGZ4a3R6dnFqZmxqaG9kZWR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTM5NTAsImV4cCI6MjA5NjI4OTk1MH0.s7KgZI1x0a5ZOJZG-FjeFVAjAljBCHpDg9kDPr3s9ac'
-    );
-    // Test connection
-    supabase.from('users').select('phone', { count: 'exact', head: true }).then(({ error }) => {
-      const dot = document.getElementById('status-dot');
-      const text = document.getElementById('status-text');
-      if (!error) {
-        dot.className = 'dot green';
-        text.textContent = 'Connected';
-      } else {
-        dot.className = 'dot red';
-        text.textContent = 'Offline';
-      }
-    });
-  }
-} catch (e) {
-  console.warn('Supabase not loaded');
-}
-// Fallback to offline after 5 seconds if no response
-setTimeout(() => {
-  const text = document.getElementById('status-text');
-  if (text && text.textContent === 'Offline') {
-    // already offline
-  }
-}, 5000);
-
 // ========== LOCAL STORAGE DATA STORE ==========
 const DB = {
   users: JSON.parse(localStorage.getItem('susu_users') || '[]'),
@@ -380,7 +336,7 @@ function goBack() {
 
 function logout() { DB.currentUser = null; save(); navigateTo('login-screen'); }
 
-// ========== AUTH (localStorage first, Supabase sync) ==========
+// ========== AUTH ==========
 function handleLogin() {
   const phone = document.getElementById('login-phone').value.trim();
   hideError('login-phone-error');
@@ -390,13 +346,11 @@ function handleLogin() {
   navigateTo('otp-screen');
 }
 
-async function handleOTP() {
+function handleOTP() {
   const otp = document.getElementById('otp-input').value.trim();
   hideError('otp-error');
   if (!validateOTP(otp)) return showError('otp-error', 'Invalid OTP. Demo: 123456');
   const phone = sessionStorage.getItem('otp_phone');
-  
-  // Always use localStorage for immediate response
   let user = DB.users.find(u => u.phone === phone);
   if (!user) {
     user = { phone, name: '', pin: '', role: 'user', email: '', momo: '', notifications: {} };
@@ -404,19 +358,6 @@ async function handleOTP() {
   }
   DB.currentUser = user;
   save();
-
-  // Background sync with Supabase
-  if (supabase) {
-    try {
-      let { data: existingUser } = await supabase.from('users').select('*').eq('phone', phone).maybeSingle();
-      if (!existingUser) {
-        await supabase.from('users').insert({ phone });
-      }
-    } catch (e) {
-      console.warn('Supabase sync error:', e.message);
-    }
-  }
-
   if (user.role === 'admin') return navigateTo('admin-dashboard-screen');
   if (user.pin) return navigateTo('password-screen');
   if (!user.name) {
@@ -444,7 +385,7 @@ function verifyForgotOTP() {
   document.getElementById('forgot-otp-section').style.display='none';
   document.getElementById('new-password-section').style.display='block';
 }
-async function resetPassword() {
+function resetPassword() {
   hideError('reset-pin-error');
   const pin = document.getElementById('new-password').value.trim();
   const conf = document.getElementById('confirm-new-password').value.trim();
@@ -454,15 +395,12 @@ async function resetPassword() {
   const idx = DB.users.findIndex(u => u.phone === DB.currentUser.phone);
   if (idx >= 0) DB.users[idx].pin = pin;
   save();
-  if (supabase) {
-    await supabase.from('users').update({ pin }).eq('phone', DB.currentUser.phone);
-  }
   alert('PIN reset successful');
   navigateTo('login-screen');
 }
 
 // ========== PROFILE ==========
-async function saveProfile(e) {
+function saveProfile(e) {
   e.preventDefault();
   hideError('name-error'); hideError('momo-error');
   const name = document.getElementById('profile-name').value.trim();
@@ -476,13 +414,10 @@ async function saveProfile(e) {
   const idx = DB.users.findIndex(u => u.phone === DB.currentUser.phone);
   if (idx >= 0) Object.assign(DB.users[idx], { name, email, momo });
   save();
-  if (supabase) {
-    await supabase.from('users').update({ name, email, momo }).eq('phone', DB.currentUser.phone);
-  }
   navigateTo('dashboard-screen');
 }
 
-async function changePassword(e) {
+function changePassword(e) {
   e.preventDefault();
   hideError('change-pin-error');
   const curr = document.getElementById('current-pin').value.trim();
@@ -495,14 +430,11 @@ async function changePassword(e) {
   const idx = DB.users.findIndex(u => u.phone === DB.currentUser.phone);
   if (idx >= 0) DB.users[idx].pin = newPin;
   save();
-  if (supabase) {
-    await supabase.from('users').update({ pin: newPin }).eq('phone', DB.currentUser.phone);
-  }
   alert('PIN updated');
   document.getElementById('current-pin').value = document.getElementById('new-pin').value = document.getElementById('confirm-pin').value = '';
 }
 
-async function deleteAccount() {
+function deleteAccount() {
   if (!confirm('Delete your account? This cannot be undone.')) return;
   const userPhone = DB.currentUser.phone;
   const eligible = DB.savings.filter(p => p.userPhone === userPhone && new Date(p.maturityDate) <= new Date() && p.active);
@@ -519,14 +451,11 @@ async function deleteAccount() {
   DB.transactions = DB.transactions.filter(t => t.userPhone !== userPhone);
   DB.currentUser = null;
   save();
-  if (supabase) {
-    await supabase.from('users').delete().eq('phone', userPhone);
-  }
   alert('Account deleted.');
   navigateTo('login-screen');
 }
 
-// ========== DASHBOARD & OTHER FEATURES (localStorage only) ==========
+// ========== DASHBOARD ==========
 function updateDashboard() {
   const plans = DB.savings.filter(p => p.userPhone === DB.currentUser.phone && p.active);
   const total = plans.reduce((s,p) => s + p.totalDeposited, 0);
@@ -538,6 +467,7 @@ function updateDashboard() {
   document.getElementById('recent-activity').innerHTML = recent.length ? recent.map(t => `<p class="small">${t.date} - ${t.type}: GHS ${t.amount}</p>`).join('') : '<p class="small">No transactions</p>';
 }
 
+// ========== SAVINGS ==========
 function createSavingsPlan(e) {
   e.preventDefault();
   hideError('amount-error');
@@ -567,6 +497,7 @@ function renderTransactions() {
   document.getElementById('transactions-list').innerHTML = txns.length ? txns.map(t => `<div style="padding:8px 0;border-bottom:1px solid #eee"><strong>${t.type}</strong> GHS ${t.amount}<br><span class="small">${t.date}</span> · ${t.status}</div>`).join('') : '<p>No transactions</p>';
 }
 
+// ========== WITHDRAWALS ==========
 function updateWithdrawalScreen() {
   const eligible = DB.savings.filter(p => p.userPhone === DB.currentUser.phone && p.active && new Date(p.maturityDate) <= new Date());
   const matured = eligible.reduce((s,p) => s + p.totalDeposited, 0);
@@ -593,6 +524,7 @@ function requestWithdrawal() {
   updateWithdrawalScreen(); updateDashboard(); alert('Withdrawal requested');
 }
 
+// ========== COMPLAINTS ==========
 function submitComplaint(e) {
   e.preventDefault();
   const cat = document.getElementById('complaint-category').value;
@@ -608,6 +540,7 @@ function renderComplaints() {
   document.getElementById('complaints-history').innerHTML = comps.length ? comps.map(c => `<div class="card" style="margin:8px 0"><strong>${c.category}</strong> - ${c.status}<br>${c.description}<br><span class="small">${c.date}</span></div>`).join('') : '<p>No complaints</p>';
 }
 
+// ========== PROFILE DISPLAY ==========
 function updateProfile() {
   document.getElementById('profile-display-name').textContent = DB.currentUser.name || '—';
   document.getElementById('profile-display-phone').textContent = DB.currentUser.phone;
@@ -626,7 +559,7 @@ function editProfile() {
   }
 }
 
-// ========== ADMIN (localStorage only) ==========
+// ========== ADMIN ==========
 function updateAdminDashboard() {
   const users = DB.users.filter(u => u.role !== 'admin');
   const totalSaved = DB.savings.reduce((s,p) => s + p.totalDeposited, 0);
@@ -737,9 +670,6 @@ function changeAdminPIN(e) {
   const user = DB.users.find(u => u.phone === DB.currentUser.phone);
   if (user) user.pin = newPin;
   save();
-  if (supabase) {
-    supabase.from('users').update({ pin: newPin }).eq('phone', DB.currentUser.phone);
-  }
   alert('Admin PIN updated');
   document.getElementById('admin-current-pin').value = document.getElementById('admin-new-pin').value = document.getElementById('admin-confirm-pin').value = '';
 }
