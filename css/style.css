@@ -1,46 +1,254 @@
-body{
-margin:0;
-font-family:Arial, sans-serif;
-background:#F5F9FF;
+/* ----- Base & Theme ----- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-.container{
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
+body {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  background: #f4f7fb;
+  color: #1e293b;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 10px;
 }
 
-.hero{
-text-align:center;
-padding:30px;
+#app {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
 }
 
-.hero h1{
-color:#1565C0;
-font-size:48px;
-margin-bottom:10px;
+/* ----- Screens ----- */
+.screen {
+  display: none;
+  animation: fade 0.25s ease;
 }
 
-.hero p{
-font-size:18px;
-color:#555;
-margin-bottom:30px;
+.screen.active {
+  display: block;
 }
 
-.btn{
-background:#1565C0;
-color:white;
-text-decoration:none;
-padding:15px 30px;
-border-radius:10px;
-display:inline-block;
+@keyframes fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-input{
-width:100%;
-max-width:300px;
-padding:15px;
-border:1px solid #ccc;
-border-radius:10px;
-font-size:16px;
+
+/* ----- Cards ----- */
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  margin: 12px 0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+
+.hero {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.logo {
+  font-size: 48px;
+}
+
+h1 {
+  font-size: 28px;
+  margin: 12px 0 8px;
+  color: #0b6efd;
+}
+
+.tagline {
+  color: #475569;
+  margin-bottom: 24px;
+  font-size: 16px;
+}
+
+h2, h3 {
+  margin-bottom: 12px;
+}
+
+/* ----- Inputs & Buttons ----- */
+input, select, textarea {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+button {
+  background: #0b6efd;
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  margin: 6px 0;
+  font-size: 15px;
+  transition: background 0.2s;
+}
+
+button.secondary {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+button:hover {
+  background: #0951c7;
+}
+
+button.secondary:hover {
+  background: #cbd5e1;
+}
+
+.btn-group {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-group button {
+  flex: 1;
+}
+
+/* ----- Topbar ----- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.topbar button {
+  width: auto;
+  padding: 8px 12px;
+  background: transparent;
+  color: #0b6efd;
+  font-weight: 600;
+}
+
+/* ----- Bottom Navigation ----- */
+.bottom-nav {
+  display: flex;
+  justify-content: space-between;
+  background: #ffffff;
+  border-radius: 16px 16px 0 0;
+  padding: 8px 12px;
+  margin-top: 20px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  position: sticky;
+  bottom: 0;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.nav-item.active {
+  color: #0b6efd;
+  font-weight: 600;
+}
+
+/* ----- Overview Card ----- */
+.overview-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.overview-item {
+  flex: 1 1 40%;
+  text-align: center;
+}
+
+.ov-label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.ov-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0b6efd;
+}
+
+/* ----- Quick Actions Grid ----- */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.quick-actions button {
+  padding: 10px 8px;
+  font-size: 14px;
+}
+
+/* ----- Small / Muted Text ----- */
+.small {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ----- Floating Button (Complaints) ----- */
+.floating-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #0b6efd;
+  color: white;
+  font-size: 24px;
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+/* ----- Admin Specific ----- */
+#admin-users-list .user-row, #admin-withdrawals-list .wd-row, #admin-complaints-list .comp-row {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 0;
+}
+
+.user-row button, .wd-row button {
+  width: auto;
+  margin: 4px 4px 0 0;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/* ----- Notifications (Checkboxes) ----- */
+label {
+  display: block;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+
+/* ----- Audit Logs ----- */
+#audit-logs p {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 6px 0;
+  font-size: 13px;
 }
