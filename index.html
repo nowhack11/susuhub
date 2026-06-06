@@ -81,6 +81,7 @@
     label { display: block; margin: 10px 0; font-size: 14px; }
     input[type="checkbox"] { width: auto; margin-right: 8px; }
     .withdrawal-summary p { margin: 6px 0; }
+    .change-pin-section { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
   </style>
 </head>
 <body>
@@ -239,6 +240,16 @@
         <label><input type="checkbox" id="notif-complaint" checked> Complaint Updates</label>
         <button onclick="saveNotificationSettings()">Save Settings</button>
       </div>
+      <!-- NEW: Change PIN section -->
+      <div class="card change-pin-section">
+        <h3>Change PIN</h3>
+        <form onsubmit="changeUserPIN(event)">
+          <input type="password" id="current-pin" placeholder="Current PIN" maxlength="4" required />
+          <input type="password" id="new-pin" placeholder="New PIN (4 digits)" maxlength="4" required />
+          <input type="password" id="confirm-pin" placeholder="Confirm New PIN" maxlength="4" required />
+          <button type="submit">Update PIN</button>
+        </form>
+      </div>
     </section>
 
     <!-- ADMIN DASHBOARD -->
@@ -261,7 +272,7 @@
       </div>
     </section>
 
-    <!-- ADMIN SUB-SCREENS (simplified) -->
+    <!-- ADMIN SUB-SCREENS -->
     <section id="admin-users-screen" class="screen">
       <div class="topbar"><button onclick="goBack()">← Back</button><h3>Users</h3></div>
       <input type="text" id="user-search" placeholder="Search" oninput="renderAdminUsers()" class="card" style="margin-bottom:8px;">
@@ -283,6 +294,16 @@
         <label>Max Deposit (GHS)</label><input type="number" id="settings-max-dep" value="100">
         <label>Processing Time (hrs)</label><input type="number" id="settings-proc-time" value="24">
         <button onclick="saveSystemSettings()">Save</button>
+      </div>
+      <!-- NEW: Change Admin PIN -->
+      <div class="card change-pin-section">
+        <h3>Change Admin PIN</h3>
+        <form onsubmit="changeAdminPIN(event)">
+          <input type="password" id="admin-current-pin" placeholder="Current PIN" maxlength="4" required />
+          <input type="password" id="admin-new-pin" placeholder="New PIN (4 digits)" maxlength="4" required />
+          <input type="password" id="admin-confirm-pin" placeholder="Confirm New PIN" maxlength="4" required />
+          <button type="submit">Update PIN</button>
+        </form>
       </div>
     </section>
     <section id="admin-announcement-screen" class="screen">
@@ -350,7 +371,7 @@
         const phone = document.getElementById('login-phone').value.trim();
         if (!phone) return alert('Phone number required');
         const user = DB.users.find(u => u.phone === phone);
-        if (!user) return alert('User not found. Use admin/1234 or create account via admin panel.');
+        if (!user) return alert('User not found. Use admin/1234 or create account.');
         sessionStorage.setItem('otp_phone', phone);
         navigateTo('otp-screen');
       };
@@ -496,6 +517,43 @@
         save(); alert('Saved');
       };
 
+      // ========== NEW: CHANGE PIN FUNCTIONS ==========
+      window.changeUserPIN = function(e) {
+        e.preventDefault();
+        if (!DB.currentUser) return alert('Not logged in');
+        const curr = document.getElementById('current-pin').value.trim();
+        const newPin = document.getElementById('new-pin').value.trim();
+        const confirm = document.getElementById('confirm-pin').value.trim();
+        if (curr !== DB.currentUser.pin) return alert('Current PIN is incorrect');
+        if (newPin.length !== 4 || isNaN(newPin)) return alert('PIN must be 4 digits');
+        if (newPin !== confirm) return alert('PINs do not match');
+        DB.currentUser.pin = newPin;
+        const u = DB.users.find(u => u.phone === DB.currentUser.phone);
+        if (u) u.pin = newPin;
+        save();
+        document.getElementById('current-pin').value = document.getElementById('new-pin').value = document.getElementById('confirm-pin').value = '';
+        alert('PIN changed successfully');
+      };
+
+      window.changeAdminPIN = function(e) {
+        e.preventDefault();
+        if (!DB.currentUser || DB.currentUser.role !== 'admin') return alert('Admin only');
+        const curr = document.getElementById('admin-current-pin').value.trim();
+        const newPin = document.getElementById('admin-new-pin').value.trim();
+        const confirm = document.getElementById('admin-confirm-pin').value.trim();
+        if (curr !== DB.currentUser.pin) return alert('Current PIN is incorrect');
+        if (newPin.length !== 4 || isNaN(newPin)) return alert('PIN must be 4 digits');
+        if (newPin !== confirm) return alert('PINs do not match');
+        DB.currentUser.pin = newPin;
+        const u = DB.users.find(u => u.phone === DB.currentUser.phone);
+        if (u) u.pin = newPin;
+        save();
+        document.getElementById('admin-current-pin').value = document.getElementById('admin-new-pin').value = document.getElementById('admin-confirm-pin').value = '';
+        alert('Admin PIN updated');
+        addAuditLog('Admin changed their PIN');
+      };
+
+      // ========== ADMIN FUNCTIONS ==========
       function updateAdminDashboard() {
         document.getElementById('admin-total-users').textContent = DB.users.filter(u => u.role !== 'admin').length;
         document.getElementById('admin-total-savings').textContent = 'GHS ' + DB.savings.reduce((s,p)=>s+p.totalDeposited,0);
@@ -556,7 +614,7 @@
           maxDep: parseInt(document.getElementById('settings-max-dep').value) || 100,
           procTime: parseInt(document.getElementById('settings-proc-time').value) || 24
         };
-        save(); alert('Settings saved');
+        save(); alert('Settings saved'); addAuditLog('System settings updated');
       };
 
       window.sendAnnouncement = function() {
@@ -564,6 +622,7 @@
         if (!msg) return;
         DB.announcements.push({ text: msg, date: new Date().toLocaleString() });
         save(); alert('Sent'); document.getElementById('announcement-msg').value = '';
+        addAuditLog('Announcement broadcasted');
       };
 
       function renderAuditLogs() {
