@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>SusuHub - Save consistently. Withdraw at maturity.</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f7fb; color: #1e293b;
+      display: flex; justify-content: center; align-items: flex-start;
+      min-height: 100vh; padding: 10px;
+    }
+    #app { width: 100%; max-width: 420px; margin: 0 auto; }
+    .screen { display: none; animation: fade 0.25s ease; }
+    .screen.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .card {
+      background: #ffffff; border-radius: 16px; padding: 20px;
+      margin: 12px 0; box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    }
+    .hero { text-align: center; padding: 50px 20px; }
+    .logo { font-size: 48px; margin-bottom: 12px; }
+    h1 { font-size: 28px; margin: 12px 0 8px; color: #0b6efd; }
+    .tagline { color: #475569; margin-bottom: 28px; font-size: 16px; }
+    h2, h3 { margin-bottom: 14px; }
+    input, select, textarea {
+      width: 100%; padding: 14px; margin: 8px 0;
+      border: 1px solid #cbd5e1; border-radius: 12px; font-size: 15px;
+    }
+    button {
+      background: #0b6efd; color: white; border: none;
+      padding: 14px 16px; border-radius: 12px; font-weight: 600;
+      cursor: pointer; width: 100%; margin: 8px 0; font-size: 15px;
+      transition: background 0.2s;
+    }
+    button.secondary { background: #e2e8f0; color: #1e293b; }
+    button:hover { background: #0951c7; }
+    button.secondary:hover { background: #cbd5e1; }
+    .btn-group { display: flex; gap: 10px; }
+    .btn-group button { flex: 1; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; background: white; border-radius: 16px;
+      padding: 12px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .topbar button {
+      width: auto; padding: 8px 12px; background: transparent;
+      color: #0b6efd; font-weight: 600; margin: 0;
+    }
+    .bottom-nav {
+      display: flex; justify-content: space-between; background: #ffffff;
+      border-radius: 16px 16px 0 0; padding: 10px 12px;
+      margin-top: 20px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+      position: sticky; bottom: 0;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center;
+      font-size: 12px; color: #64748b; cursor: pointer; padding: 4px;
+    }
+    .nav-item.active { color: #0b6efd; font-weight: 600; }
+    .overview-card {
+      display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between;
+    }
+    .overview-item {
+      flex: 1 1 40%; text-align: center;
+      background: #f8fafc; border-radius: 12px; padding: 12px 8px;
+    }
+    .ov-label { font-size: 13px; color: #64748b; display: block; }
+    .ov-value { font-size: 20px; font-weight: 700; color: #0b6efd; display: block; margin-top: 4px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .quick-actions button { padding: 12px 8px; font-size: 14px; }
+    .small { font-size: 13px; color: #64748b; }
+    .floating-btn {
+      width: 50px; height: 50px; border-radius: 50%; background: #0b6efd;
+      color: white; font-size: 24px; position: fixed; bottom: 70px; right: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex;
+      align-items: center; justify-content: center; z-index: 10;
+    }
+    label { display: block; margin: 10px 0; font-size: 14px; }
+    input[type="checkbox"] { width: auto; margin-right: 8px; }
+    .withdrawal-summary p { margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- WELCOME -->
+    <section id="welcome-screen" class="screen active">
+      <div class="card hero">
+        <div class="logo">💙</div>
+        <h1>SusuHub</h1>
+        <p class="tagline">Save consistently. Withdraw at maturity.</p>
+        <button onclick="navigateTo('login-screen')">Get Started</button>
+      </div>
+    </section>
+
+    <!-- LOGIN -->
+    <section id="login-screen" class="screen">
+      <div class="card">
+        <h2>Login</h2>
+        <p class="small">Enter your phone number</p>
+        <input type="tel" id="login-phone" placeholder="Phone Number" />
+        <button onclick="handleLogin()">Continue</button>
+      </div>
+    </section>
+
+    <!-- OTP -->
+    <section id="otp-screen" class="screen">
+      <div class="card">
+        <h2>OTP Verification</h2>
+        <p class="small">Enter the code sent to your phone</p>
+        <input type="text" id="otp-input" placeholder="6-digit code" maxlength="6" />
+        <div class="btn-group">
+          <button onclick="handleOTP()">Verify</button>
+          <button class="secondary" onclick="resendOTP()">Resend Code</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFILE SETUP -->
+    <section id="profile-setup-screen" class="screen">
+      <div class="card">
+        <h2>Profile Setup</h2>
+        <form onsubmit="saveProfile(event)">
+          <input type="text" id="profile-name" placeholder="Full Name" required />
+          <input type="email" id="profile-email" placeholder="Email (Optional)" />
+          <input type="tel" id="profile-phone" readonly placeholder="Phone number" />
+          <input type="tel" id="profile-momo" placeholder="Mobile Money Number" required />
+          <button type="submit">Save Profile</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dashboard-screen" class="screen">
+      <div class="topbar">
+        <h3>SusuHub</h3>
+        <button onclick="logout()">Logout</button>
+      </div>
+      <div class="card overview-card">
+        <div class="overview-item"><span class="ov-label">Total Savings</span><span class="ov-value" id="total-saved">GHS 0</span></div>
+        <div class="overview-item"><span class="ov-label">Active Plans</span><span class="ov-value" id="active-plans-count">0</span></div>
+        <div class="overview-item"><span class="ov-label">Next Maturity</span><span class="ov-value" id="next-maturity">—</span></div>
+      </div>
+      <div class="card quick-actions">
+        <div class="grid-2">
+          <button onclick="navigateTo('savings-screen')">Create Plan</button>
+          <button onclick="navigateTo('withdrawals-screen')">Withdraw</button>
+          <button onclick="navigateTo('complaints-screen')">Complaint</button>
+          <button onclick="navigateTo('transactions-screen')">Transactions</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Recent Activity</h3>
+        <div id="recent-activity"><p class="small">No transactions yet.</p></div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item active" onclick="navigateTo('dashboard-screen')">🏠 Home</div>
+        <div class="nav-item" onclick="navigateTo('savings-screen')">💼 Savings</div>
+        <div class="nav-item" onclick="navigateTo('transactions-screen')">📋 Tx</div>
+        <div class="nav-item" onclick="navigateTo('complaints-screen')">📝 Issues</div>
+        <div class="nav-item" onclick="navigateTo('profile-screen')">👤 Profile</div>
+      </div>
+    </section>
+
+    <!-- SAVINGS -->
+    <section id="savings-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Savings Plans</h3></div>
+      <div class="card"><h3>Existing Plans</h3><div id="existing-plans"></div></div>
+      <div class="card">
+        <h3>Create New Plan</h3>
+        <form onsubmit="createSavingsPlan(event)">
+          <input type="text" id="plan-name" placeholder="Plan Name" required />
+          <input type="number" id="plan-amount" placeholder="Amount (GHS 2-100)" min="2" max="100" required />
+          <select id="plan-frequency"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
+          <button type="submit">Create Plan</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TRANSACTIONS -->
+    <section id="transactions-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Transactions</h3></div>
+      <div class="card" id="transactions-list"><p>No transactions yet.</p></div>
+    </section>
+
+    <!-- WITHDRAWALS -->
+    <section id="withdrawals-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Withdrawals</h3></div>
+      <div class="card">
+        <div class="withdrawal-summary">
+          <p>Matured Balance: <strong id="matured-balance">GHS 0</strong></p>
+          <p>Withdrawal Fee (3%): <strong id="withdrawal-fee">GHS 0</strong></p>
+          <p>You Receive: <strong id="net-amount">GHS 0</strong></p>
+        </div>
+        <input type="number" id="withdraw-amount" placeholder="Amount to withdraw" />
+        <button onclick="requestWithdrawal()">Request Withdrawal</button>
+        <p class="small">No early withdrawal. 24-hour processing.</p>
+      </div>
+      <div class="card"><h3>Withdrawal History</h3><div id="withdrawal-history"></div></div>
+    </section>
+
+    <!-- COMPLAINTS -->
+    <section id="complaints-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Complaints</h3></div>
+      <div class="card">
+        <h3>Report an Issue</h3>
+        <form onsubmit="submitComplaint(event)">
+          <select id="complaint-category">
+            <option value="withdrawal">Withdrawal Issue</option>
+            <option value="deposit">Deposit Issue</option>
+            <option value="sms">SMS Issue</option>
+            <option value="account">Account Issue</option>
+            <option value="other">Other</option>
+          </select>
+          <textarea id="complaint-desc" placeholder="Describe your issue..." required></textarea>
+          <button type="submit">Submit Complaint</button>
+        </form>
+      </div>
+      <div class="card"><h3>Complaint History</h3><div id="complaints-history"></div></div>
+      <button class="floating-btn" onclick="window.scrollTo(0,0);document.getElementById('complaint-desc').focus()">+</button>
+    </section>
+
+    <!-- PROFILE -->
+    <section id="profile-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Profile</h3></div>
+      <div class="card">
+        <p><strong>Name:</strong> <span id="profile-display-name"></span></p>
+        <p><strong>Phone:</strong> <span id="profile-display-phone"></span></p>
+        <p><strong>Mobile Money:</strong> <span id="profile-display-momo"></span></p>
+        <button onclick="editProfile()">Edit Profile</button>
+      </div>
+      <div class="card">
+        <h3>Notification Settings</h3>
+        <label><input type="checkbox" id="notif-deposit" checked> Deposit Alerts</label>
+        <label><input type="checkbox" id="notif-withdrawal" checked> Withdrawal Alerts</label>
+        <label><input type="checkbox" id="notif-reminder" checked> Reminder Alerts</label>
+        <label><input type="checkbox" id="notif-complaint" checked> Complaint Updates</label>
+        <button onclick="saveNotificationSettings()">Save Settings</button>
+      </div>
+    </section>
+
+    <!-- ADMIN DASHBOARD -->
+    <section id="admin-dashboard-screen" class="screen">
+      <div class="topbar"><h3>Admin Panel</h3><button onclick="logout()">Logout</button></div>
+      <div class="card overview-card">
+        <div class="overview-item"><span>Total Users</span><span id="admin-total-users">0</span></div>
+        <div class="overview-item"><span>Total Savings</span><span id="admin-total-savings">GHS 0</span></div>
+        <div class="overview-item"><span>Active Plans</span><span id="admin-active-plans">0</span></div>
+        <div class="overview-item"><span>Pending WD</span><span id="admin-pending-wd">0</span></div>
+        <div class="overview-item"><span>Open Complaints</span><span id="admin-open-complaints">0</span></div>
+      </div>
+      <div class="grid-2">
+        <button onclick="navigateTo('admin-users-screen')">Users</button>
+        <button onclick="navigateTo('admin-withdrawals-screen')">Withdrawals</button>
+        <button onclick="navigateTo('admin-complaints-screen')">Complaints</button>
+        <button onclick="navigateTo('admin-settings-screen')">Settings</button>
+        <button onclick="navigateTo('admin-announcement-screen')">Broadcast</button>
+        <button onclick="navigateTo('admin-logs-screen')">Audit</button>
+      </div>
+    </section>
+
+    <!-- ADMIN SUB-SCREENS (simplified) -->
+    <section id="admin-users-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Users</h3></div>
+      <input type="text" id="user-search" placeholder="Search" oninput="renderAdminUsers()" class="card" style="margin-bottom:8px;">
+      <div id="admin-users-list" class="card"></div>
+    </section>
+    <section id="admin-withdrawals-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Withdrawals</h3></div>
+      <div id="admin-withdrawals-list" class="card"></div>
+    </section>
+    <section id="admin-complaints-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Complaints</h3></div>
+      <div id="admin-complaints-list" class="card"></div>
+    </section>
+    <section id="admin-settings-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Settings</h3></div>
+      <div class="card">
+        <label>Withdrawal Fee (%)</label><input type="number" id="settings-fee" value="3" step="0.1">
+        <label>Min Deposit (GHS)</label><input type="number" id="settings-min-dep" value="2">
+        <label>Max Deposit (GHS)</label><input type="number" id="settings-max-dep" value="100">
+        <label>Processing Time (hrs)</label><input type="number" id="settings-proc-time" value="24">
+        <button onclick="saveSystemSettings()">Save</button>
+      </div>
+    </section>
+    <section id="admin-announcement-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Announcements</h3></div>
+      <div class="card"><textarea id="announcement-msg" placeholder="Message..."></textarea><button onclick="sendAnnouncement()">Send</button></div>
+    </section>
+    <section id="admin-logs-screen" class="screen">
+      <div class="topbar"><button onclick="goBack()">← Back</button><h3>Audit Logs</h3></div>
+      <div class="card" id="audit-logs"></div>
+    </section>
+  </div>
+
+  <script>
+    // ========== APP LOGIC ==========
+    (function() {
+      const DB = {
+        users: JSON.parse(localStorage.getItem('susu_users') || '[]'),
+        currentUser: JSON.parse(localStorage.getItem('susu_currentUser') || 'null'),
+        savings: JSON.parse(localStorage.getItem('susu_savings') || '[]'),
+        transactions: JSON.parse(localStorage.getItem('susu_transactions') || '[]'),
+        withdrawals: JSON.parse(localStorage.getItem('susu_withdrawals') || '[]'),
+        complaints: JSON.parse(localStorage.getItem('susu_complaints') || '[]'),
+        settings: JSON.parse(localStorage.getItem('susu_settings') || '{"fee":3,"minDep":2,"maxDep":100,"procTime":24}'),
+        auditLogs: JSON.parse(localStorage.getItem('susu_auditLogs') || '[]'),
+        announcements: JSON.parse(localStorage.getItem('susu_announcements') || '[]')
+      };
+
+      function save() { Object.keys(DB).forEach(k => localStorage.setItem('susu_' + k, JSON.stringify(DB[k]))); }
+
+      if (!DB.users.find(u => u.phone === 'admin')) {
+        DB.users.push({ name: 'Super Admin', phone: 'admin', pin: '1234', role: 'admin', email: '', momo: '', notifications: { deposit: true, withdrawal: true, reminder: true, complaint: true } });
+        save();
+      }
+
+      window.navigateTo = function(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const screen = document.getElementById(screenId);
+        if (screen) screen.classList.add('active');
+        if (screenId === 'dashboard-screen') updateDashboard();
+        if (screenId === 'savings-screen') renderSavings();
+        if (screenId === 'transactions-screen') renderTransactions();
+        if (screenId === 'withdrawals-screen') updateWithdrawalScreen();
+        if (screenId === 'complaints-screen') renderComplaints();
+        if (screenId === 'profile-screen') updateProfile();
+        if (screenId === 'admin-dashboard-screen') updateAdminDashboard();
+        if (screenId === 'admin-users-screen') renderAdminUsers();
+        if (screenId === 'admin-withdrawals-screen') renderAdminWithdrawals();
+        if (screenId === 'admin-complaints-screen') renderAdminComplaints();
+        if (screenId === 'admin-settings-screen') populateSettings();
+        if (screenId === 'admin-logs-screen') renderAuditLogs();
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        const map = { 'dashboard-screen':0, 'savings-screen':1, 'transactions-screen':2, 'complaints-screen':3, 'profile-screen':4 };
+        if (map[screenId] !== undefined) document.querySelectorAll('.nav-item')[map[screenId]].classList.add('active');
+      };
+
+      window.goBack = function() {
+        if (!DB.currentUser) return navigateTo('welcome-screen');
+        if (DB.currentUser.role === 'admin') navigateTo('admin-dashboard-screen');
+        else navigateTo('dashboard-screen');
+      };
+
+      window.logout = function() { DB.currentUser = null; save(); navigateTo('welcome-screen'); };
+
+      window.handleLogin = function() {
+        const phone = document.getElementById('login-phone').value.trim();
+        if (!phone) return alert('Phone number required');
+        const user = DB.users.find(u => u.phone === phone);
+        if (!user) return alert('User not found. Use admin/1234 or create account via admin panel.');
+        sessionStorage.setItem('otp_phone', phone);
+        navigateTo('otp-screen');
+      };
+
+      window.handleOTP = function() {
+        const otp = document.getElementById('otp-input').value.trim();
+        if (otp !== '123456') return alert('Invalid OTP. Demo: 123456');
+        const phone = sessionStorage.getItem('otp_phone');
+        const user = DB.users.find(u => u.phone === phone);
+        if (!user) return;
+        DB.currentUser = user; save();
+        document.getElementById('otp-input').value = '';
+        if (user.role === 'admin') navigateTo('admin-dashboard-screen');
+        else if (!user.name || user.name.trim() === '') { document.getElementById('profile-phone').value = user.phone; navigateTo('profile-setup-screen'); }
+        else navigateTo('dashboard-screen');
+      };
+
+      window.resendOTP = function() { alert('OTP resent (demo: 123456)'); };
+
+      window.saveProfile = function(e) {
+        e.preventDefault();
+        const name = document.getElementById('profile-name').value.trim();
+        const email = document.getElementById('profile-email').value.trim();
+        const momo = document.getElementById('profile-momo').value.trim();
+        if (!name || !momo) return alert('Name and Mobile Money required');
+        DB.currentUser.name = name; DB.currentUser.email = email; DB.currentUser.momo = momo;
+        const idx = DB.users.findIndex(u => u.phone === DB.currentUser.phone);
+        if (idx >= 0) Object.assign(DB.users[idx], { name, email, momo });
+        save(); navigateTo('dashboard-screen');
+      };
+
+      function updateDashboard() {
+        if (!DB.currentUser) return;
+        const plans = DB.savings.filter(p => p.userPhone === DB.currentUser.phone && p.active);
+        const total = plans.reduce((s, p) => s + p.totalDeposited, 0);
+        document.getElementById('total-saved').textContent = 'GHS ' + total;
+        document.getElementById('active-plans-count').textContent = plans.length;
+        const maturities = plans.map(p => new Date(p.maturityDate)).filter(d => d > new Date());
+        document.getElementById('next-maturity').textContent = maturities.length ? new Date(Math.min(...maturities)).toLocaleDateString() : '—';
+        const recent = DB.transactions.filter(t => t.userPhone === DB.currentUser.phone).slice(-3);
+        document.getElementById('recent-activity').innerHTML = recent.length ? recent.map(t => `<p class="small">${t.date} - ${t.type}: GHS ${t.amount}</p>`).join('') : '<p class="small">No transactions</p>';
+      }
+
+      window.createSavingsPlan = function(e) {
+        e.preventDefault();
+        if (!DB.currentUser) return;
+        const name = document.getElementById('plan-name').value.trim();
+        const amount = parseInt(document.getElementById('plan-amount').value);
+        const freq = document.getElementById('plan-frequency').value;
+        if (!name || amount < DB.settings.minDep || amount > DB.settings.maxDep) return alert(`Amount must be between GHS ${DB.settings.minDep} and ${DB.settings.maxDep}`);
+        const start = new Date();
+        const maturity = new Date(start.getTime() + 30*86400000);
+        const plan = { id: Date.now(), userPhone: DB.currentUser.phone, name, amount, frequency: freq, startDate: start.toISOString(), maturityDate: maturity.toISOString(), totalDeposited: 0, active: true };
+        DB.savings.push(plan);
+        addTransaction('Deposit', amount, 'Successful', DB.currentUser.phone);
+        plan.totalDeposited = amount;
+        save(); renderSavings(); updateDashboard();
+        alert('Plan created!');
+      };
+
+      function renderSavings() {
+        const plans = DB.savings.filter(p => p.userPhone === DB.currentUser?.phone);
+        document.getElementById('existing-plans').innerHTML = plans.length ? plans.map(p => `
+          <div class="card" style="margin:8px 0"><strong>${p.name}</strong> (${p.frequency})<br>GHS ${p.amount} | Saved: ${p.totalDeposited}<br>Matures: ${new Date(p.maturityDate).toLocaleDateString()}<br>${p.active ? 'Active' : 'Inactive'}</div>`).join('') : '<p>No plans yet.</p>';
+      }
+
+      function addTransaction(type, amount, status, phone) {
+        DB.transactions.push({ id: Date.now(), userPhone: phone, type, amount, status, date: new Date().toLocaleString() }); save();
+      }
+
+      function renderTransactions() {
+        const txns = DB.transactions.filter(t => t.userPhone === DB.currentUser?.phone).reverse();
+        document.getElementById('transactions-list').innerHTML = txns.length ? txns.map(t => `<div style="padding:8px 0;border-bottom:1px solid #eee"><strong>${t.type}</strong> GHS ${t.amount}<br><span class="small">${t.date}</span> · ${t.status}</div>`).join('') : '<p>No transactions</p>';
+      }
+
+      function updateWithdrawalScreen() {
+        if (!DB.currentUser) return;
+        const eligible = DB.savings.filter(p => p.userPhone === DB.currentUser.phone && new Date(p.maturityDate) <= new Date() && p.active);
+        const matured = eligible.reduce((s, p) => s + p.totalDeposited, 0);
+        const fee = Math.round(matured * DB.settings.fee / 100);
+        document.getElementById('matured-balance').textContent = 'GHS ' + matured;
+        document.getElementById('withdrawal-fee').textContent = 'GHS ' + fee;
+        document.getElementById('net-amount').textContent = 'GHS ' + (matured - fee);
+        const wds = DB.withdrawals.filter(w => w.userPhone === DB.currentUser.phone);
+        document.getElementById('withdrawal-history').innerHTML = wds.length ? wds.map(w => `<div class="card" style="margin:8px 0"><strong>GHS ${w.amount}</strong> (Fee: ${w.fee})<br>Status: ${w.status}<br><span class="small">${w.date}</span></div>`).join('') : '<p>No withdrawals</p>';
+      }
+
+      window.requestWithdrawal = function() {
+        if (!DB.currentUser) return;
+        const eligible = DB.savings.filter(p => p.userPhone === DB.currentUser.phone && new Date(p.maturityDate) <= new Date() && p.active);
+        if (!eligible.length) return alert('No matured plans.');
+        let totalMat = eligible.reduce((s, p) => s + p.totalDeposited, 0);
+        const amount = parseInt(document.getElementById('withdraw-amount').value);
+        if (isNaN(amount) || amount < 1 || amount > totalMat) return alert('Enter valid amount up to GHS ' + totalMat);
+        const fee = Math.round(amount * DB.settings.fee / 100);
+        eligible.forEach(p => p.active = false);
+        DB.withdrawals.push({ id: Date.now(), userPhone: DB.currentUser.phone, amount, fee, status: 'Pending', date: new Date().toLocaleString(), note: '' });
+        addTransaction('Withdrawal', amount, 'Pending', DB.currentUser.phone);
+        save(); updateWithdrawalScreen(); updateDashboard();
+        alert('Request submitted. 24h processing.');
+      };
+
+      window.submitComplaint = function(e) {
+        e.preventDefault();
+        const cat = document.getElementById('complaint-category').value;
+        const desc = document.getElementById('complaint-desc').value.trim();
+        if (!desc) return;
+        DB.complaints.push({ id: Date.now(), userPhone: DB.currentUser.phone, category: cat, description: desc, status: 'Open', date: new Date().toLocaleString(), replies: [] });
+        save(); renderComplaints(); document.getElementById('complaint-desc').value = ''; alert('Submitted');
+      };
+
+      function renderComplaints() {
+        const comps = DB.complaints.filter(c => c.userPhone === DB.currentUser?.phone);
+        document.getElementById('complaints-history').innerHTML = comps.length ? comps.map(c => `<div class="card" style="margin:8px 0"><strong>${c.category}</strong> - ${c.status}<br>${c.description}<br><span class="small">${c.date}</span>${c.replies.length ? '<br><small>Reply: '+c.replies[c.replies.length-1].text+'</small>' : ''}</div>`).join('') : '<p>No complaints</p>';
+      }
+
+      function updateProfile() {
+        if (!DB.currentUser) return;
+        document.getElementById('profile-display-name').textContent = DB.currentUser.name || '—';
+        document.getElementById('profile-display-phone').textContent = DB.currentUser.phone;
+        document.getElementById('profile-display-momo').textContent = DB.currentUser.momo || '—';
+        if (DB.currentUser.notifications) {
+          document.getElementById('notif-deposit').checked = DB.currentUser.notifications.deposit;
+          document.getElementById('notif-withdrawal').checked = DB.currentUser.notifications.withdrawal;
+          document.getElementById('notif-reminder').checked = DB.currentUser.notifications.reminder;
+          document.getElementById('notif-complaint').checked = DB.currentUser.notifications.complaint;
+        }
+      }
+
+      window.editProfile = function() {
+        const name = prompt('Name:', DB.currentUser.name);
+        if (name !== null && name.trim()) { DB.currentUser.name = name.trim(); const u = DB.users.find(u=>u.phone===DB.currentUser.phone); if(u) u.name=name; save(); updateProfile(); }
+      };
+
+      window.saveNotificationSettings = function() {
+        DB.currentUser.notifications = {
+          deposit: document.getElementById('notif-deposit').checked,
+          withdrawal: document.getElementById('notif-withdrawal').checked,
+          reminder: document.getElementById('notif-reminder').checked,
+          complaint: document.getElementById('notif-complaint').checked
+        };
+        const u = DB.users.find(u=>u.phone===DB.currentUser.phone); if(u) u.notifications = DB.currentUser.notifications;
+        save(); alert('Saved');
+      };
+
+      function updateAdminDashboard() {
+        document.getElementById('admin-total-users').textContent = DB.users.filter(u => u.role !== 'admin').length;
+        document.getElementById('admin-total-savings').textContent = 'GHS ' + DB.savings.reduce((s,p)=>s+p.totalDeposited,0);
+        document.getElementById('admin-active-plans').textContent = DB.savings.filter(p=>p.active).length;
+        document.getElementById('admin-pending-wd').textContent = DB.withdrawals.filter(w=>w.status==='Pending').length;
+        document.getElementById('admin-open-complaints').textContent = DB.complaints.filter(c=>c.status==='Open').length;
+      }
+
+      window.renderAdminUsers = function() {
+        const term = (document.getElementById('user-search')?.value || '').toLowerCase();
+        const users = DB.users.filter(u => u.role !== 'admin' && (u.name?.toLowerCase().includes(term) || u.phone.includes(term)));
+        document.getElementById('admin-users-list').innerHTML = users.map(u => `
+          <div style="padding:8px 0;border-bottom:1px solid #eee">
+            <strong>${u.name||'—'}</strong> (${u.phone})<br>
+            ${u.suspended ? 'Suspended' : 'Active'}
+            <button onclick="toggleSuspend('${u.phone}')">${u.suspended?'Reactivate':'Suspend'}</button>
+            <button onclick="editUser('${u.phone}')">Edit</button>
+          </div>`).join('') || '<p>No users</p>';
+      };
+      window.toggleSuspend = function(phone) { const u = DB.users.find(u=>u.phone===phone); if(u){ u.suspended=!u.suspended; save(); renderAdminUsers(); } };
+      window.editUser = function(phone) { const u = DB.users.find(u=>u.phone===phone); if(!u) return; const name=prompt('Name',u.name); const momo=prompt('MoMo',u.momo); if(name!==null) u.name=name; if(momo!==null) u.momo=momo; save(); renderAdminUsers(); };
+
+      window.renderAdminWithdrawals = function() {
+        document.getElementById('admin-withdrawals-list').innerHTML = DB.withdrawals.map(w => `
+          <div style="padding:8px 0;border-bottom:1px solid #eee">
+            ${w.userPhone} - GHS ${w.amount} (${w.status})<br>
+            ${w.status==='Pending' ? `<button onclick="approveWD(${w.id})">Approve</button><button onclick="rejectWD(${w.id})">Reject</button>` : ''}
+          </div>`).join('') || '<p>No withdrawals</p>';
+      };
+      window.approveWD = function(id) { const w = DB.withdrawals.find(w=>w.id===id); if(w){ w.status='Approved'; w.note=prompt('Note')||''; save(); renderAdminWithdrawals(); } };
+      window.rejectWD = function(id) { const w = DB.withdrawals.find(w=>w.id===id); if(w){ w.status='Rejected'; w.note=prompt('Reason')||''; save(); renderAdminWithdrawals(); } };
+
+      window.renderAdminComplaints = function() {
+        document.getElementById('admin-complaints-list').innerHTML = DB.complaints.map(c => `
+          <div style="padding:8px 0;border-bottom:1px solid #eee">
+            ${c.userPhone} - ${c.category} (${c.status})<br>${c.description}<br>
+            <button onclick="replyComp(${c.id})">Reply</button>
+            <select onchange="setCompStatus(${c.id},this.value)">
+              <option ${c.status==='Open'?'selected':''}>Open</option>
+              <option ${c.status==='In Progress'?'selected':''}>In Progress</option>
+              <option ${c.status==='Resolved'?'selected':''}>Resolved</option>
+            </select>
+          </div>`).join('') || '<p>No complaints</p>';
+      };
+      window.replyComp = function(id) { const c = DB.complaints.find(c=>c.id===id); if(c){ const r=prompt('Reply'); if(r){ c.replies.push({text:r,date:new Date().toLocaleString()}); c.status='In Progress'; save(); renderAdminComplaints(); } } };
+      window.setCompStatus = function(id,status) { const c = DB.complaints.find(c=>c.id===id); if(c){ c.status=status; save(); } };
+
+      function populateSettings() {
+        document.getElementById('settings-fee').value = DB.settings.fee;
+        document.getElementById('settings-min-dep').value = DB.settings.minDep;
+        document.getElementById('settings-max-dep').value = DB.settings.maxDep;
+        document.getElementById('settings-proc-time').value = DB.settings.procTime;
+      }
+      window.saveSystemSettings = function() {
+        DB.settings = {
+          fee: parseFloat(document.getElementById('settings-fee').value) || 3,
+          minDep: parseInt(document.getElementById('settings-min-dep').value) || 2,
+          maxDep: parseInt(document.getElementById('settings-max-dep').value) || 100,
+          procTime: parseInt(document.getElementById('settings-proc-time').value) || 24
+        };
+        save(); alert('Settings saved');
+      };
+
+      window.sendAnnouncement = function() {
+        const msg = document.getElementById('announcement-msg').value.trim();
+        if (!msg) return;
+        DB.announcements.push({ text: msg, date: new Date().toLocaleString() });
+        save(); alert('Sent'); document.getElementById('announcement-msg').value = '';
+      };
+
+      function renderAuditLogs() {
+        document.getElementById('audit-logs').innerHTML = DB.auditLogs.slice(-20).reverse().map(l => `<p class="small">${l.date} - ${l.action}</p>`).join('') || '<p>No logs</p>';
+      }
+      function addAuditLog(action) { DB.auditLogs.push({action, date: new Date().toLocaleString()}); save(); }
+
+      // Init
+      if (DB.currentUser) {
+        if (DB.currentUser.role === 'admin') navigateTo('admin-dashboard-screen');
+        else if (!DB.currentUser.name) { document.getElementById('profile-phone').value = DB.currentUser.phone; navigateTo('profile-setup-screen'); }
+        else navigateTo('dashboard-screen');
+      } else navigateTo('welcome-screen');
+    })();
+  </script>
+</body>
+</html>
