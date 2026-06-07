@@ -1,2 +1,2 @@
-# susuhub
+# susu-hub
 SusuHub Savings Application
