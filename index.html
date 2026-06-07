@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>SusuHub - Save consistently. Withdraw at maturity.</title>
-  <!-- Supabase library (loaded first) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -66,13 +64,6 @@
     .danger-zone { margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
     .link { color: #0b6efd; font-weight: 500; cursor: pointer; }
     .error-msg { color: #ef4444; font-size: 12px; margin-top: -8px; margin-bottom: 8px; display: none; }
-    .connection-status {
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      margin-top: 12px; font-size: 12px;
-    }
-    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .dot.green { background: #22c55e; }
-    .dot.red { background: #ef4444; }
   </style>
 </head>
 <body>
@@ -86,10 +77,6 @@
       <input type="tel" id="login-phone" placeholder="Phone Number (e.g. 0551234567)" />
       <div id="login-phone-error" class="error-msg">Phone must be 10 digits, starting with 0</div>
       <button onclick="handleLogin()">Continue</button>
-      <div class="connection-status" id="connection-status">
-        <span class="dot red" id="status-dot"></span>
-        <span id="status-text">Offline</span>
-      </div>
     </div>
   </section>
 
@@ -286,40 +273,7 @@
 </div>
 
 <script>
-// ========== SUPABASE CLIENT (safe initialization) ==========
-let supabase = null;
-try {
-  if (window.supabase) {
-    supabase = window.supabase.createClient(
-      'https://tgpfxktzvqjfljhodedv.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRncGZ4a3R6dnFqZmxqaG9kZWR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MTM5NTAsImV4cCI6MjA5NjI4OTk1MH0.s7KgZI1x0a5ZOJZG-FjeFVAjAljBCHpDg9kDPr3s9ac'
-    );
-    // Quick connection test -> update the status dot
-    supabase.from('users').select('phone', { count: 'exact', head: true }).then(({ error }) => {
-      const dot = document.getElementById('status-dot');
-      const text = document.getElementById('status-text');
-      if (!error) {
-        dot.className = 'dot green';
-        text.textContent = 'Connected';
-      } else {
-        dot.className = 'dot red';
-        text.textContent = 'Offline';
-      }
-    });
-  }
-} catch (e) {
-  console.warn('Supabase not loaded');
-}
-// Fallback to show offline after 5 seconds if still "Checking..."
-setTimeout(() => {
-  const text = document.getElementById('status-text');
-  if (text && text.textContent === 'Checking connection...') {
-    document.getElementById('status-dot').className = 'dot red';
-    text.textContent = 'Offline';
-  }
-}, 5000);
-
-// ========== LOCAL STORAGE DATA STORE (always works) ==========
+// ========== LOCAL STORAGE DATA STORE ==========
 const DB = {
   users: JSON.parse(localStorage.getItem('susu_users') || '[]'),
   currentUser: JSON.parse(localStorage.getItem('susu_currentUser') || 'null'),
@@ -382,7 +336,7 @@ function goBack() {
 
 function logout() { DB.currentUser = null; save(); navigateTo('login-screen'); }
 
-// ========== AUTH (localStorage first, Supabase sync) ==========
+// ========== AUTH ==========
 function handleLogin() {
   const phone = document.getElementById('login-phone').value.trim();
   hideError('login-phone-error');
@@ -392,13 +346,11 @@ function handleLogin() {
   navigateTo('otp-screen');
 }
 
-async function handleOTP() {
+function handleOTP() {
   const otp = document.getElementById('otp-input').value.trim();
   hideError('otp-error');
   if (!validateOTP(otp)) return showError('otp-error', 'Invalid OTP. Demo: 123456');
   const phone = sessionStorage.getItem('otp_phone');
-  
-  // Always use localStorage for immediate response
   let user = DB.users.find(u => u.phone === phone);
   if (!user) {
     user = { phone, name: '', pin: '', role: 'user', email: '', momo: '', notifications: {} };
@@ -406,15 +358,6 @@ async function handleOTP() {
   }
   DB.currentUser = user;
   save();
-
-  // Background sync to Supabase (if available)
-  if (supabase) {
-    supabase.from('users').upsert(
-      { phone: user.phone, name: user.name, email: user.email, momo: user.momo, pin: user.pin, role: user.role },
-      { onConflict: 'phone' }
-    ).then(() => {}).catch(() => {});
-  }
-
   if (user.role === 'admin') return navigateTo('admin-dashboard-screen');
   if (user.pin) return navigateTo('password-screen');
   if (!user.name) {
@@ -442,7 +385,7 @@ function verifyForgotOTP() {
   document.getElementById('forgot-otp-section').style.display='none';
   document.getElementById('new-password-section').style.display='block';
 }
-async function resetPassword() {
+function resetPassword() {
   hideError('reset-pin-error');
   const pin = document.getElementById('new-password').value.trim();
   const conf = document.getElementById('confirm-new-password').value.trim();
@@ -452,15 +395,12 @@ async function resetPassword() {
   const idx = DB.users.findIndex(u => u.phone === DB.currentUser.phone);
   if (idx >= 0) DB.users[idx].pin = pin;
   save();
-  if (supabase) {
-    supabase.from('users').update({ pin }).eq('phone', DB.currentUser.phone).then(() => {}).catch(() => {});
-  }
   alert('PIN reset successful');
   navigateTo('login-screen');
 }
 
 // ========== PROFILE ==========
-async function saveProfile(e) {
+function saveProfile(e) {
   e.preventDefault();
   hideError('name-error'); hideError('momo-error');
   const name = document.getElementById('profile-name').value.trim();
@@ -474,15 +414,10 @@ async function saveProfile(e) {
   const idx = DB.users.findIndex(u => u.phone === DB.currentUser.phone);
   if (idx >= 0) Object.assign(DB.users[idx], { name, email, momo });
   save();
-
-  // background sync
-  if (supabase) {
-    supabase.from('users').update({ name, email, momo }).eq('phone', DB.currentUser.phone).then(() => {}).catch(() => {});
-  }
   navigateTo('dashboard-screen');
 }
 
-async function changePassword(e) {
+function changePassword(e) {
   e.preventDefault();
   hideError('change-pin-error');
   const curr = document.getElementById('current-pin').value.trim();
@@ -495,14 +430,11 @@ async function changePassword(e) {
   const idx = DB.users.findIndex(u => u.phone === DB.currentUser.phone);
   if (idx >= 0) DB.users[idx].pin = newPin;
   save();
-  if (supabase) {
-    supabase.from('users').update({ pin: newPin }).eq('phone', DB.currentUser.phone).then(() => {}).catch(() => {});
-  }
   alert('PIN updated');
   document.getElementById('current-pin').value = document.getElementById('new-pin').value = document.getElementById('confirm-pin').value = '';
 }
 
-async function deleteAccount() {
+function deleteAccount() {
   if (!confirm('Delete your account? This cannot be undone.')) return;
   const userPhone = DB.currentUser.phone;
   const eligible = DB.savings.filter(p => p.userPhone === userPhone && new Date(p.maturityDate) <= new Date() && p.active);
@@ -519,9 +451,6 @@ async function deleteAccount() {
   DB.transactions = DB.transactions.filter(t => t.userPhone !== userPhone);
   DB.currentUser = null;
   save();
-  if (supabase) {
-    supabase.from('users').delete().eq('phone', userPhone).then(() => {}).catch(() => {});
-  }
   alert('Account deleted.');
   navigateTo('login-screen');
 }
@@ -548,35 +477,13 @@ function createSavingsPlan(e) {
   if (!validateAmount(amount, DB.settings.minDep, DB.settings.maxDep)) return showError('amount-error', `Amount must be between GHS ${DB.settings.minDep} and ${DB.settings.maxDep}`);
   const start = new Date();
   const maturity = new Date(start.getTime() + 30*86400000);
-  const newPlan = {
+  DB.savings.push({
     id: Date.now(), userPhone: DB.currentUser.phone, plan_name: name,
     amount, frequency: freq, maturityDate: maturity.toISOString(),
     totalDeposited: amount, active: true
-  };
-  DB.savings.push(newPlan);
+  });
   DB.transactions.push({ id: Date.now(), userPhone: DB.currentUser.phone, type: 'Deposit', amount, status: 'Successful', date: new Date().toLocaleString() });
   save();
-
-  // background sync
-  if (supabase) {
-    supabase.from('savings').insert({
-      id: newPlan.id,
-      user_phone: newPlan.userPhone,
-      plan_name: newPlan.plan_name,
-      amount: newPlan.amount,
-      frequency: newPlan.frequency,
-      maturity_date: newPlan.maturityDate,
-      total_deposited: newPlan.totalDeposited,
-      active: true
-    }).then(() => {}).catch(() => {});
-    supabase.from('transactions').insert({
-      user_phone: DB.currentUser.phone,
-      type: 'Deposit',
-      amount,
-      status: 'Successful'
-    }).then(() => {}).catch(() => {});
-  }
-
   renderSavings(); updateDashboard(); alert('Plan created!');
 }
 
@@ -610,30 +517,10 @@ function requestWithdrawal() {
   const amount = parseInt(document.getElementById('withdraw-amount').value);
   if (isNaN(amount) || amount < 1 || amount > totalMat) return showError('withdraw-error', `Enter a valid amount between 1 and ${totalMat}`);
   const fee = Math.round(amount * DB.settings.fee / 100);
-  const newW = { id: Date.now(), userPhone: DB.currentUser.phone, amount, fee, status: 'Pending', date: new Date().toLocaleString(), note: '' };
-  DB.withdrawals.push(newW);
+  DB.withdrawals.push({ id: Date.now(), userPhone: DB.currentUser.phone, amount, fee, status: 'Pending', date: new Date().toLocaleString(), note: '' });
   DB.transactions.push({ id: Date.now(), userPhone: DB.currentUser.phone, type: 'Withdrawal', amount, status: 'Pending', date: new Date().toLocaleString() });
   eligible.forEach(p => p.active = false);
   save();
-
-  // background sync
-  if (supabase) {
-    supabase.from('withdrawals').insert({
-      id: newW.id,
-      user_phone: newW.userPhone,
-      amount: newW.amount,
-      fee: newW.fee,
-      status: 'Pending',
-      note: ''
-    }).then(() => {}).catch(() => {});
-    supabase.from('transactions').insert({
-      user_phone: DB.currentUser.phone,
-      type: 'Withdrawal',
-      amount,
-      status: 'Pending'
-    }).then(() => {}).catch(() => {});
-  }
-
   updateWithdrawalScreen(); updateDashboard(); alert('Withdrawal requested');
 }
 
@@ -643,18 +530,8 @@ function submitComplaint(e) {
   const cat = document.getElementById('complaint-category').value;
   const desc = document.getElementById('complaint-desc').value.trim();
   if (!desc) return;
-  const newC = { id: Date.now(), userPhone: DB.currentUser.phone, category: cat, description: desc, status: 'Open', date: new Date().toLocaleString(), replies: [] };
-  DB.complaints.push(newC);
+  DB.complaints.push({ id: Date.now(), userPhone: DB.currentUser.phone, category: cat, description: desc, status: 'Open', date: new Date().toLocaleString(), replies: [] });
   save();
-  if (supabase) {
-    supabase.from('complaints').insert({
-      id: newC.id,
-      user_phone: newC.userPhone,
-      category: newC.category,
-      description: newC.description,
-      status: 'Open'
-    }).then(() => {}).catch(() => {});
-  }
   document.getElementById('complaint-desc').value = ''; alert('Submitted'); renderComplaints();
 }
 
@@ -676,11 +553,7 @@ function editProfile() {
     DB.currentUser.name = name.trim();
     const idx = DB.users.findIndex(u => u.phone === DB.currentUser.phone);
     if (idx >= 0) DB.users[idx].name = name.trim();
-    save();
-    if (supabase) {
-      supabase.from('users').update({ name: name.trim() }).eq('phone', DB.currentUser.phone).then(() => {}).catch(() => {});
-    }
-    updateProfile();
+    save(); updateProfile();
   } else if (name !== null) {
     alert('Name must be at least 2 characters');
   }
@@ -797,9 +670,6 @@ function changeAdminPIN(e) {
   const user = DB.users.find(u => u.phone === DB.currentUser.phone);
   if (user) user.pin = newPin;
   save();
-  if (supabase) {
-    supabase.from('users').update({ pin: newPin }).eq('phone', DB.currentUser.phone).then(() => {}).catch(() => {});
-  }
   alert('Admin PIN updated');
   document.getElementById('admin-current-pin').value = document.getElementById('admin-new-pin').value = document.getElementById('admin-confirm-pin').value = '';
 }
